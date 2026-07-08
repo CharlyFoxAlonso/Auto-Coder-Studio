@@ -1,0 +1,19 @@
+{
+    "Python": {
+        "FastAPI": [],
+        "Django": [],
+        "Pandas": [],
+        "IA": []
+    },
+    "JavaScript": {
+        "React": [],
+        "Node.js": [],
+        "Vue": [],
+        "TypeScript": []
+    },
+    "General": {
+        "Algoritmos": [],
+        "Arquitectura": [],
+        "Documentación": []
+    }
+}

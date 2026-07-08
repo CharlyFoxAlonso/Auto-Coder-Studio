@@ -1,0 +1,98 @@
+import os
+import json
+import google.generativeai as genai
+from dotenv import load_dotenv
+from pypdf import PdfReader
+from docx import Document
+import io
+
+load_dotenv()
+
+# Configuración de la API de Google
+genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+
+# Usamos el modelo más capaz para la digestión (Gemini/Gemma)
+# Nota: Usamos gemini-1.5-flash por su velocidad y ventana de contexto enorme (1M tokens)
+# lo que permite procesar libros enteros de una sola vez.
+MODEL_NAME = "gemini-1.5-flash"
+
+def extract_text(uploaded_file):
+    """Extrae texto de archivos PDF, DOCX y TXT."""
+    file_ext = uploaded_file.name.split('.')[-1].lower()
+    
+    try:
+        if file_ext == 'pdf':
+            reader = PdfReader(uploaded_file)
+            text = "".join([page.extract_text() for page in reader.pages])
+            return text
+        elif file_ext == 'docx':
+            doc = Document(io.BytesIO(uploaded_file.read()))
+            text = "\n".join([para.text for para in doc.paragraphs])
+            return text
+        elif file_ext == 'txt':
+            return uploaded_file.read().decode('utf-8')
+        else:
+            return None
+    except Exception as e:
+        print(f"Error extrayendo texto: {e}")
+        return None
+
+def digest_document(text, cajon, subcajon):
+    """
+    Utiliza Gemma/Gemini para dividir el texto en chunks semánticos
+    y generar un índice de conocimiento.
+    """
+    model = genai.GenerativeModel(
+        model_name=MODEL_NAME,
+        generation_config={"response_mime_type": "application/json"}
+    )
+
+    prompt = f"""
+    Actúa como un Ingeniero de Conocimiento experto en IA. 
+    Tu tarea es digerir el siguiente documento y prepararlo para un sistema RAG local.
+    
+    DOCUMENTO PARA PROCESAR:
+    Categoría: {cajon} -> {subcajon}
+    Texto: {text}
+    
+    INSTRUCCIONES DE DIGESTIÓN:
+    1. Divide el texto en "chunks" (fragmentos) semánticos. Un chunk debe contener una idea completa.
+    2. No cortes frases a la mitad.
+    3. Para cada chunk, genera:
+       - 'titulo': Un título breve y descriptivo.
+       - 'contenido': El texto original del fragmento.
+       - 'keywords': Una lista de 3-5 palabras clave para mejorar la búsqueda vectorial.
+       - 'importancia': Un valor del 1 al 10 sobre la relevancia de este fragmento.
+    
+    FORMATO DE SALIDA OBLIGATORIO (JSON):
+    [
+      {{
+        "titulo": "Ejemplo de Título",
+        "contenido": "Contenido del fragmento...",
+        "keywords": ["palabra1", "palabra2"],
+        "importancia": 8
+      }},
+      ...
+    ]
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        return json.loads(response.text)
+    except Exception as e:
+        print(f"Error en digestión cloud: {e}")
+        return None
+
+def process_document_cloud(uploaded_file, cajon, subcajon):
+    """Pipeline completo: Extracción -> Digestión Cloud."""
+    # 1. Extraer texto
+    text = extract_text(uploaded_file)
+    if not text:
+        return None, "No se pudo extraer texto del archivo."
+    
+    # 2. Digestión en la nube
+    chunks = digest_document(text, cajon, subcajon)
+    if not chunks:
+        return None, "El procesador cloud no pudo digerir el documento."
+    
+    return chunks, None
