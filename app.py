@@ -33,7 +33,7 @@ if "historial_chat" not in st.session_state:
 if "modelo_seleccionado" not in st.session_state:
     st.session_state.modelo_seleccionado = MODELO_CODER
 if "carpeta_trabajo" not in st.session_state:
-    st.session_state.carpeta_trabajo = os.getenv("CARPETA_DEFECTO", "")
+    st.session_state.carpeta_trabajo = ""
 # Mensaje pendiente del usuario, para continuar el loop entre ejecuciones.
 if "prompt_pendiente" not in st.session_state:
     st.session_state.prompt_pendiente = None
@@ -117,6 +117,13 @@ with st.sidebar:
         st.session_state.resultado_final = None
         st.session_state.terminado_pendiente = None
         st.rerun()
+
+    if st.session_state.loop_activo:
+        if st.button("🛑 Detener Agente", type="primary", use_container_width=True):
+            st.session_state.loop_activo = False
+            st.session_state.prompt_pendiente = None
+            st.success("Agente detenido por el usuario.")
+            st.rerun()
 
     st.divider()
 
@@ -217,15 +224,19 @@ with st.expander("💡 Ejemplos de qué pedir"):
 # ---------------------------------------------------------------------------
 def render_historial():
     for msg in st.session_state.historial_chat:
-        with st.chat_message(msg["role"]):
+        # Cambiamos "tool" por un emoji para evitar que Streamlit ponga la letra "T"
+        role = msg["role"]
+        avatar = "🤖" if role == "assistant" else "👤" if role == "user" else "🛠️"
+        
+        with st.chat_message(avatar):
             contenido = msg.get("content", "")
-            if msg["role"] == "tool":
+            if role == "tool":
                 if len(contenido) > 1000:
                     with st.expander("Ver contenido completo"):
                         st.code(contenido, language="text")
                 else:
                     st.code(contenido, language="text")
-            elif msg["role"] == "assistant":
+            elif role == "assistant":
                 if "TERMINADO:" in contenido:
                     st.success(contenido)
                 elif "[Usando" in contenido or "[Respuesta inválida" in contenido:
@@ -277,6 +288,15 @@ def ejecutar_herramienta(herramienta, argumentos, carpeta):
             "contenido": contenido,
         }
 
+    elif herramienta == "delete_file":
+        ruta = argumentos.get("ruta", "")
+        from core.file_manager import borrar_archivo
+        ok, msg = borrar_archivo(carpeta, ruta)
+        if ok:
+            return {"resultado": msg, "error": ""}
+        else:
+            return {"resultado": None, "error": msg}
+
     return {"resultado": None, "error": f"Herramienta desconocida: {herramienta}"}
 
 
@@ -317,6 +337,15 @@ def paso_loop(prompt_actual):
     prompt_inyectado = _preparar_prompt_con_contexto(
         prompt_actual, carpeta, st.session_state.archivos_creados
     )
+    
+    # REFUERZO DE MEMORIA: Si hay un archivo que se acaba de crear/modificar,
+    # le recordamos al modelo su contenido exacto para evitar que reinicie la tarea.
+    if st.session_state.ultimo_archivo_creado:
+        u_ruta = st.session_state.ultimo_archivo_creado
+        u_cont, _ = leer_archivo(carpeta, u_ruta)
+        if u_cont:
+            prompt_inyectado += f"\n\n[ESTADO ACTUAL DEL ARCHIVO {u_ruta}]:\n```\n{u_cont}\n```\n"
+            prompt_inyectado += "Teniendo en cuenta este contenido, continuá con la siguiente acción."
 
     st.session_state.iteracion += 1
     with st.spinner(f"🔄 Iteración {st.session_state.iteracion}/{MAX_ITER}..."):
@@ -325,11 +354,18 @@ def paso_loop(prompt_actual):
     with st.expander(f"🔍 Ver respuesta del modelo (iteración {st.session_state.iteracion - 1})"):
         st.code(respuesta)
 
+    # Primero extraemos el JSON si existe, para poder validar la terminación
+    data = forzar_json(respuesta)
+
     # Si el modelo respondió "TERMINADO:" (solo eso, sin JSON previo), cerramos
     if respuesta.startswith("TERMINADO:") or respuesta.strip() == "TERMINADO":
+        # VALIDACIÓN: Si el modelo intenta terminar pero no hubo una herramienta 
+        # ejecutada en esta iteración, podría estar mintiendo (alucinación).
+        if not data:
+             # Si no hay data de herramienta en esta vuelta, el modelo solo dijo TERMINADO
+             # sin ejecutar nada. Esto es aceptable si la tarea ya terminó.
+             pass 
         return ("listo", respuesta)
-
-    data = forzar_json(respuesta)
 
     if not data:
         # El modelo no devolvió JSON ni TERMINADO.
@@ -351,25 +387,26 @@ def paso_loop(prompt_actual):
     pensamiento = data.get("pensamiento", "")
 
     if pensamiento:
-        st.markdown(f"💭 *{pensamiento}*")
+        st.markdown(f"**Pensamiento:** {pensamiento}")
 
-    # Detección de reescritura repetida
+    # Detección de reescritura repetida (solo si el contenido es idéntico)
     if herramienta == "write_file":
         ruta_actual = argumentos.get("ruta", "")
-        if ruta_actual == st.session_state.ultimo_archivo_creado:
+        contenido_actual = argumentos.get("contenido", "")
+        if ruta_actual == st.session_state.ultimo_archivo_creado and contenido_actual == st.session_state.get("ultimo_contenido_escrito"):
             st.session_state.contador_repeticiones += 1
             if st.session_state.contador_repeticiones >= 2:
-                st.warning(f"⚠️ Reescritura repetida de {ruta_actual}. "
-                           f"Forzando terminación.")
+                st.warning(f"⚠️ Reescritura idéntica de {ruta_actual}. Forzando terminación.")
                 return (
                     "listo",
-                    f"TERMINADO: Tarea completada (reescritura repetida de "
+                    f"TERMINADO: Tarea completada (reescritura idéntica de "
                     f"{ruta_actual}). Archivos: "
                     f"{st.session_state.archivos_creados}"
                 )
         else:
             st.session_state.contador_repeticiones = 0
             st.session_state.ultimo_archivo_creado = ruta_actual
+            st.session_state.ultimo_contenido_escrito = contenido_actual
 
     resultado = ejecutar_herramienta(herramienta, argumentos, carpeta)
     historial.append({"role": "assistant", "content": f"[Usando {herramienta}]"})
@@ -537,6 +574,11 @@ def render_panel_escritura_pendiente():
     col1, col2, col3 = st.columns([1, 1, 4])
     confirmar = col1.button("✅ Confirmar", type="primary")
     descartar = col2.button("🗑️ Descartar")
+    
+    # Nueva casilla de instrucciones adicionales
+    instrucciones = st.text_input("💬 Instrucción adicional o ajuste:", 
+                                  placeholder="Ej: Cambia el nombre a X, o 'Suficiente, detené el loop'")
+    
     with st.expander("Ver contenido propuesto", expanded=True):
         st.code(pend["contenido"], language="python")
 
@@ -550,11 +592,13 @@ def render_panel_escritura_pendiente():
                               "content": f"✅ Guardado: {pend['ruta']}"})
             if pend["ruta"] not in st.session_state.archivos_creados:
                 st.session_state.archivos_creados.append(pend["ruta"])
-            # Atajo: si el modelo ya había marcado TERMINADO junto a este write,
-            # o si el usuario acaba de confirmar su archivo, cerramos el loop
-            # acá. Si NO terminó, igual le damos UN prompt más para que cierre.
+            
             st.session_state.escritura_pendiente = None
-            if st.session_state.terminado_pendiente:
+            
+            # Si el usuario escribió algo, lo sumamos al prompt siguiente
+            if instrucciones:
+                st.session_state.prompt_pendiente = f"El archivo fue guardado. {instrucciones}"
+            elif st.session_state.terminado_pendiente:
                 st.session_state.prompt_pendiente = None
             else:
                 st.session_state.prompt_pendiente = (
@@ -582,11 +626,16 @@ def render_panel_escritura_pendiente():
         )
         st.info(f"⏸️ Creación de {pend['ruta']} descartada.")
         st.session_state.escritura_pendiente = None
-        st.session_state.prompt_pendiente = (
-            f"El usuario rechazó crear {pend['ruta']}. "
-            "No insistas con ese archivo. Continuá con otra parte de la tarea "
-            "o terminá con TERMINADO:."
-        )
+        
+        # Si el usuario puso instrucciones al descartar, las usamos
+        if instrucciones:
+            st.session_state.prompt_pendiente = f"El usuario descartó el archivo. {instrucciones}"
+        else:
+            st.session_state.prompt_pendiente = (
+                f"El usuario rechazó crear {pend['ruta']}. "
+                "No insistas con ese archivo. Continuá con otra parte de la tarea "
+                "o terminá con TERMINADO:."
+            )
         return True
 
     return False  # No hubo interacción, el loop debe esperar al usuario

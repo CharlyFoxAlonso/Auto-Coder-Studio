@@ -93,3 +93,19 @@ def generar_diff(ruta_base, ruta_relativa, nuevo_contenido):
         lineterm=''
     )
     return "\n".join(diff)
+
+def borrar_archivo(ruta_base, ruta_relativa):
+    """Borra un archivo de forma segura."""
+    ok, msg = validar_ruta_segura(ruta_base, ruta_relativa)
+    if not ok:
+        return False, msg
+    
+    ruta_completa = os.path.join(ruta_base, ruta_relativa)
+    try:
+        if os.path.exists(ruta_completa):
+            os.remove(ruta_completa)
+            return True, f"✅ Archivo eliminado: {ruta_relativa}"
+        else:
+            return False, f"Error: El archivo {ruta_relativa} no existe."
+    except Exception as e:
+        return False, f"Error al borrar archivo: {str(e)}"
