@@ -739,32 +739,47 @@ if prompt:
             )
             col_a, col_b, col_c = st.columns(3)
             if col_a.button("🔄 Replantear", use_container_width=True):
-                # Cancelar lo que hacía y empezar con el nuevo mensaje
+                # Cancela todo y arranca loop nuevo con el mensaje del usuario.
                 st.session_state.loop_activo = False
                 st.session_state.prompt_pendiente = None
                 st.session_state.escritura_pendiente = None
+                st.session_state.terminado_pendiente = None
                 st.session_state.interrupcion_pendiente = None
-                # Inyectamos el nuevo mensaje como si fuera el primero
+                if "adjuntar_archivos" in st.session_state:
+                    st.session_state.adjuntar_archivos = []
                 st.session_state.historial_chat.append({"role": "user", "content": prompt})
                 st.session_state.iteracion = 0
                 st.session_state.archivos_creados = []
+                st.session_state.ultimo_archivo_creado = None
+                st.session_state.contador_repeticiones = 0
                 st.session_state.resultado_final = None
+                # Reanudamos el loop inmediatamente con el mensaje nuevo.
+                st.session_state.loop_activo = True
+                st.session_state.prompt_pendiente = prompt
                 st.rerun()
             if col_b.button("✍️ Cancelar y replantear con tu mensaje", use_container_width=True):
-                # Mismo que replantear, conserva el historial
+                # Conserva historial y arranca loop nuevo con mensaje del usuario.
                 st.session_state.loop_activo = False
                 st.session_state.prompt_pendiente = None
                 st.session_state.escritura_pendiente = None
+                st.session州州.terminado_pendiente = None
                 st.session_state.interrupcion_pendiente = None
                 st.session_state.historial_chat.append({"role": "user", "content": prompt})
                 st.session_state.iteracion = 0
                 st.session_state.archivos_creados = []
+                st.session_state.ultimo_archivo_creado = None
+                st.session_state.contador_repeticiones = 0
                 st.session_state.resultado_final = None
+                st.session_state.loop_activo = True
+                st.session_state.prompt_pendiente = prompt
                 st.rerun()
             if col_c.button("➡️ Ignorar y continuar", use_container_width=True):
-                # Descartar el mensaje nuevo y seguir con la tarea actual
+                # Descarta el mensaje del usuario y vuelve a procesar la tarea previa.
                 st.session_state.interrupcion_pendiente = None
-                st.info("Mensaje descartado. Continuando con la tarea en curso.")
+                # Si el agente tenía algo pendiente, lo mandamos de vuelta al loop.
+                if not st.session_state.prompt_pendiente and not st.session_state.escritura_pendiente:
+                    # No había nada; forzamos un rerun para limpiar la UI.
+                    st.session_state.loop_activo = False
                 st.rerun()
         else:
             # Flujo normal: arranca un loop nuevo
