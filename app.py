@@ -58,6 +58,9 @@ if "resultado_final" not in st.session_state:
 # Se aplica recién tras confirmar/descartar la escritura pendiente.
 if "terminado_pendiente" not in st.session_state:
     st.session_state.terminado_pendiente = None
+# Mensaje nuevo que llegó mientras el loop estaba ocupado (interrupción humana).
+if "interrupcion_pendiente" not in st.session_state:
+    st.session_state.interrupcion_pendiente = None
 
 MAX_ITER = 20
 
@@ -713,7 +716,7 @@ else:
 
 
 # ---------------------------------------------------------------------------
-# Input del usuario
+# Input del usuario con detección de interrupciones humanas
 # ---------------------------------------------------------------------------
 prompt = st.chat_input("¿Qué querés programar hoy?")
 if prompt:
@@ -722,12 +725,55 @@ if prompt:
     elif not os.path.exists(st.session_state.carpeta_trabajo):
         st.error(f"❌ La carpeta no existe: `{st.session_state.carpeta_trabajo}`")
     else:
-        st.session_state.historial_chat.append({"role": "user", "content": prompt})
-        st.session_state.loop_activo = True
-        st.session_state.iteracion = 0
-        st.session_state.archivos_creados = []
-        st.session_state.ultimo_archivo_creado = None
-        st.session_state.contador_repeticiones = 0
-        st.session_state.resultado_final = None
-        st.session_state.prompt_pendiente = prompt
-        st.rerun()
+        # DETECCIÓN DE INTERRUPCIÓN: Si el usuario escribe mientras el loop
+        # está trabajando, le preguntamos qué hacer.
+        loop_ocupado = st.session_state.loop_activo and (
+            st.session_state.prompt_pendiente is not None or
+            st.session_state.escritura_pendiente is not None
+        )
+        if loop_ocupado:
+            st.session_state.interrupcion_pendiente = prompt
+            st.warning(
+                f"🛑 El agente está trabajando en algo. Recibí tu mensaje: "
+                f"\"_{prompt}_\". ¿Qué querés hacer?"
+            )
+            col_a, col_b, col_c = st.columns(3)
+            if col_a.button("🔄 Replantear", use_container_width=True):
+                # Cancelar lo que hacía y empezar con el nuevo mensaje
+                st.session_state.loop_activo = False
+                st.session_state.prompt_pendiente = None
+                st.session_state.escritura_pendiente = None
+                st.session_state.interrupcion_pendiente = None
+                # Inyectamos el nuevo mensaje como si fuera el primero
+                st.session_state.historial_chat.append({"role": "user", "content": prompt})
+                st.session_state.iteracion = 0
+                st.session_state.archivos_creados = []
+                st.session_state.resultado_final = None
+                st.rerun()
+            if col_b.button("✍️ Cancelar y replantear con tu mensaje", use_container_width=True):
+                # Mismo que replantear, conserva el historial
+                st.session_state.loop_activo = False
+                st.session_state.prompt_pendiente = None
+                st.session_state.escritura_pendiente = None
+                st.session_state.interrupcion_pendiente = None
+                st.session_state.historial_chat.append({"role": "user", "content": prompt})
+                st.session_state.iteracion = 0
+                st.session_state.archivos_creados = []
+                st.session_state.resultado_final = None
+                st.rerun()
+            if col_c.button("➡️ Ignorar y continuar", use_container_width=True):
+                # Descartar el mensaje nuevo y seguir con la tarea actual
+                st.session_state.interrupcion_pendiente = None
+                st.info("Mensaje descartado. Continuando con la tarea en curso.")
+                st.rerun()
+        else:
+            # Flujo normal: arranca un loop nuevo
+            st.session_state.historial_chat.append({"role": "user", "content": prompt})
+            st.session_state.loop_activo = True
+            st.session_state.iteracion = 0
+            st.session_state.archivos_creados = []
+            st.session_state.ultimo_archivo_creado = None
+            st.session_state.contador_repeticiones = 0
+            st.session_state.resultado_final = None
+            st.session_state.prompt_pendiente = prompt
+            st.rerun()

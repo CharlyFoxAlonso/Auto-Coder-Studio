@@ -45,6 +45,7 @@ REGLAS DE EJECUCIÓN (CRÍTICAS):
    - Qué acaba de leer.
    - Qué va a hacer a continuación.
    Prohibido usar respuestas cortas como "T", "Ok" o "Sigo".
+5. INTERRUPCIONES HUMANAS: Si el usuario escribió mensajes extra en el chat mientras el loop estaba activo y vos todavía no cumpliste el objetivo original, NUNCA respondas TERMINADO. Primero process la instrucción nueva usando una herramienta.
 
 REGLAS DE CONTENIDO (CRÍTICAS):
 - El campo "contenido" del JSON debe contener el archivo ENTERO y VÁLIDO, desde la primera línea hasta la última.
