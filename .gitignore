@@ -12,7 +12,6 @@ Thumbs.db
 .venv/
 .pytest_cache/
 .agents/
-*.md
 *.docx
 *.exe
 *.bat
