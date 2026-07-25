@@ -9,8 +9,7 @@ import io
 load_dotenv()
 
 # Configuración de la API de Google (Nueva librería google-genai)
-client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-MODEL_NAME = "gemini-1.5-flash"
+MODEL_NAME = os.getenv("GOOGLE_DIGEST_MODEL", "gemini-2.5-flash")
 
 def extract_text(uploaded_file):
     """Extrae texto de archivos PDF, DOCX y TXT."""
@@ -19,7 +18,7 @@ def extract_text(uploaded_file):
     try:
         if file_ext == 'pdf':
             reader = PdfReader(uploaded_file)
-            text = "".join([page.extract_text() for page in reader.pages])
+            text = "\n".join((page.extract_text() or "") for page in reader.pages)
             return text
         elif file_ext == 'docx':
             doc = Document(io.BytesIO(uploaded_file.read()))
@@ -59,6 +58,10 @@ def digest_document(text, cajon, subcajon):
     """
     
     try:
+        api_key = os.getenv("GOOGLE_API_KEY")
+        if not api_key:
+            return None
+        client = genai.Client(api_key=api_key)
         response = client.models.generate_content(
             model=MODEL_NAME,
             contents=prompt,
@@ -80,3 +83,25 @@ def process_document_cloud(uploaded_file, cajon, subcajon):
         return None, "El procesador cloud no pudo digerir el documento."
     
     return chunks, None
+
+
+def process_document_local(uploaded_file, cajon, subcajon, max_chars=1800):
+    """Fragmentación local determinista: el documento nunca sale del equipo."""
+    text = extract_text(uploaded_file)
+    if not text:
+        return None, "No se pudo extraer texto del archivo."
+    paragraphs = [part.strip() for part in text.replace("\r\n", "\n").split("\n\n") if part.strip()]
+    chunks, current = [], []
+    current_len = 0
+    for paragraph in paragraphs:
+        if current and current_len + len(paragraph) > max_chars:
+            content = "\n\n".join(current)
+            chunks.append({"titulo": f"{uploaded_file.name} · fragmento {len(chunks) + 1}",
+                           "contenido": content, "keywords": [], "importancia": 5})
+            current, current_len = [], 0
+        current.append(paragraph)
+        current_len += len(paragraph)
+    if current:
+        chunks.append({"titulo": f"{uploaded_file.name} · fragmento {len(chunks) + 1}",
+                       "contenido": "\n\n".join(current), "keywords": [], "importancia": 5})
+    return (chunks, None) if chunks else (None, "El documento no contiene texto utilizable.")

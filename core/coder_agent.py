@@ -158,7 +158,8 @@ def forzar_json(respuesta):
     try:
         data = json.loads(texto[start:fin + 1])
         # Validar que tenga las claves necesarias
-        if "herramienta" in data and "argumentos" in data:
+        if (("herramienta" in data and "argumentos" in data)
+                or isinstance(data.get("acciones"), list)):
             return data
         return None
     except json.JSONDecodeError:

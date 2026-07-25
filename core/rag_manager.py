@@ -1,17 +1,20 @@
 import chromadb
 from chromadb.config import Settings
 import requests
-import json
 import os
+import re
+import uuid
+from pathlib import Path
 
 # Configuración de Ollama para Embeddings
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/embeddings")
+OLLAMA_EMBED_URL = os.getenv("OLLAMA_EMBED_URL", "http://127.0.0.1:11434/api/embeddings")
+RAG_DB_PATH = Path(__file__).resolve().parent.parent / ".autocoder" / "chroma_db"
 
 def get_embedding(text):
     """Convierte texto en un vector usando el modelo nomic-embed-text de Ollama."""
     try:
         response = requests.post(
-            OLLAMA_URL,
+            OLLAMA_EMBED_URL,
             json={"model": "nomic-embed-text", "prompt": text},
             timeout=30
         )
@@ -23,7 +26,14 @@ def get_embedding(text):
 
 def iniciar_db():
     """Inicia el cliente de ChromaDB persistente."""
-    return chromadb.PersistentClient(path="./chroma_db")
+    RAG_DB_PATH.mkdir(parents=True, exist_ok=True)
+    return chromadb.PersistentClient(path=str(RAG_DB_PATH))
+
+
+def _collection_name(cajon, subcajon):
+    raw = f"{cajon}_{subcajon}".lower()
+    clean = re.sub(r"[^a-z0-9._-]+", "_", raw).strip("._-")
+    return (clean or "general")[:63]
 
 def indexar_chunks(chunks, cajon, subcajon):
     """
@@ -31,9 +41,10 @@ def indexar_chunks(chunks, cajon, subcajon):
     """
     db = iniciar_db()
     # Creamos una colección por cada sub-cajón para máxima velocidad
-    collection_name = f"{cajon}_{subcajon}".replace(" ", "_").lower()
+    collection_name = _collection_name(cajon, subcajon)
     collection = db.get_or_create_collection(name=collection_name)
 
+    indexed = 0
     for i, chunk in enumerate(chunks):
         # Combinamos título + contenido para el embedding
         texto_para_vector = f"{chunk['titulo']}\n{chunk['contenido']}"
@@ -41,7 +52,7 @@ def indexar_chunks(chunks, cajon, subcajon):
         
         if vector:
             collection.add(
-                ids=[f"doc_{i}"],
+                ids=[f"doc_{uuid.uuid4().hex}"],
                 embeddings=[vector],
                 metadatas=[{
                     "titulo": chunk['titulo'],
@@ -51,7 +62,8 @@ def indexar_chunks(chunks, cajon, subcajon):
                 }],
                 documents=[chunk['contenido']]
             )
-    return True
+            indexed += 1
+    return indexed == len(chunks) and indexed > 0
 
 def buscar_conocimiento(query, cajon=None, subcajon=None):
     """
@@ -61,28 +73,26 @@ def buscar_conocimiento(query, cajon=None, subcajon=None):
     
     # Si el usuario especificó cajones, buscamos solo ahí
     if cajon and subcajon:
-        collection_name = f"{cajon}_{subcajon}".replace(" ", "_").lower()
-        collection = db.get_or_create_collection(name=collection_name)
+        collections = [db.get_or_create_collection(name=_collection_name(cajon, subcajon))]
     else:
-        # Si no, buscamos en todas las colecciones (simplicidad)
-        # Nota: Para buscar en todas, tendríamos que iterar las colecciones.
-        # Por simplicidad inicial, buscamos en el cajón general.
-        collection = db.get_or_create_collection(name="general")
+        collections = db.list_collections()
 
     query_vector = get_embedding(query)
     if not query_vector:
         return "Error al generar vector de búsqueda."
 
-    results = collection.query(
-        query_embeddings=[query_vector],
-        n_results=3
-    )
+    candidatos = []
+    for collection in collections:
+        if collection.count() == 0:
+            continue
+        results = collection.query(query_embeddings=[query_vector], n_results=min(3, collection.count()))
+        distances = results.get("distances", [[]])[0]
+        for i, doc in enumerate(results.get('documents', [[]])[0]):
+            meta = results.get('metadatas', [[]])[0][i]
+            distance = distances[i] if i < len(distances) else 999
+            candidatos.append((distance, meta, doc))
 
-    # Formateamos los resultados para el agente
-    contexto = []
-    for i in range(len(results['documents'][0])):
-        doc = results['documents'][0][i]
-        meta = results['metadatas'][0][i]
-        contexto.append(f"--- Fragmento ({meta['titulo']}) ---\n{doc}")
+    contexto = [f"--- Fragmento ({meta.get('titulo', 'Sin título')}) ---\n{doc}"
+                for _, meta, doc in sorted(candidatos, key=lambda item: item[0])[:3]]
 
     return "\n\n".join(contexto) if contexto else "No se encontró información relevante en la biblioteca."

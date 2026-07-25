@@ -1,7 +1,7 @@
 import json
 import os
 
-DRAWERS_FILE = "core/drawers.json"
+DRAWERS_FILE = os.path.join(os.path.dirname(__file__), "drawers.json")
 
 def cargar_cajones():
     """Carga la jerarquía de cajones desde el archivo JSON."""
@@ -33,5 +33,4 @@ def agregar_subcajon(cajon, subcajon):
         data[cajon] = {}
     if subcajon not in data[cajon]:
         data[cajon][subcajon] = []
-    guardar_cajones(data)
-    return True
+    return guardar_cajones(data)

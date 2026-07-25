@@ -5,9 +5,14 @@ Incluye validaciones anti-path-traversal y límites de seguridad.
 """
 import os
 import difflib
+import tempfile
 from core.security import validar_ruta_segura, es_extension_segura
 
-def listar_archivos(ruta_base):
+IGNORAR_DIRECTORIOS = {".git", ".venv", "node_modules", "__pycache__", "chroma_db"}
+MAX_LECTURA_BYTES = 1_000_000
+
+
+def listar_archivos(ruta_base, max_entradas=2000):
     """Lista todos los archivos y carpetas dentro de ruta_base.
 
     Devuelve una tupla (estructura_str, error_str):
@@ -22,7 +27,7 @@ def listar_archivos(ruta_base):
     try:
         for root, dirs, files in os.walk(ruta_base):
             # Ignorar carpetas ocultas y virtuales
-            dirs[:] = [d for d in dirs if not d.startswith('.') and d != '__pycache__']
+            dirs[:] = [d for d in dirs if not d.startswith('.') and d not in IGNORAR_DIRECTORIOS]
 
             nivel = root.replace(ruta_base, '').count(os.sep)
             indent = '  ' * nivel
@@ -35,6 +40,9 @@ def listar_archivos(ruta_base):
             for f in sorted(files):
                 if not f.startswith('.'):
                     estructura.append(f"{indent} {f}")
+                    if len(estructura) >= max_entradas:
+                        estructura.append("… listado truncado por seguridad")
+                        return "\n".join(estructura), ""
 
         return "\n".join(estructura), ""
     except Exception as e:
@@ -47,8 +55,10 @@ def leer_archivo(ruta_base, ruta_relativa):
         return None, msg
     
     ruta_completa = os.path.join(ruta_base, ruta_relativa)
-    if not os.path.exists(ruta_completa):
+    if not os.path.isfile(ruta_completa):
         return None, f"Archivo no encontrado: {ruta_relativa}"
+    if os.path.getsize(ruta_completa) > MAX_LECTURA_BYTES:
+        return None, f"El archivo supera el límite de {MAX_LECTURA_BYTES} bytes."
         
     try:
         with open(ruta_completa, 'r', encoding='utf-8') as f:
@@ -73,8 +83,18 @@ def escribir_archivo(ruta_base, ruta_relativa, contenido):
         os.makedirs(dir_padre, exist_ok=True)
     
     try:
-        with open(ruta_completa, 'w', encoding='utf-8') as f:
-            f.write(contenido)
+        if not isinstance(contenido, str):
+            return False, "El contenido debe ser texto."
+        descriptor, temporal = tempfile.mkstemp(prefix=".autocoder-", dir=dir_padre or ruta_base)
+        try:
+            with os.fdopen(descriptor, 'w', encoding='utf-8', newline='') as f:
+                f.write(contenido)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(temporal, ruta_completa)
+        finally:
+            if os.path.exists(temporal):
+                os.remove(temporal)
         return True, f"✅ Archivo actualizado: {ruta_relativa}"
     except Exception as e:
         return False, f"❌ Error escribiendo: {str(e)}"
@@ -102,7 +122,7 @@ def borrar_archivo(ruta_base, ruta_relativa):
     
     ruta_completa = os.path.join(ruta_base, ruta_relativa)
     try:
-        if os.path.exists(ruta_completa):
+        if os.path.isfile(ruta_completa):
             os.remove(ruta_completa)
             return True, f"✅ Archivo eliminado: {ruta_relativa}"
         else:

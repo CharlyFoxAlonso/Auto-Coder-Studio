@@ -7,9 +7,19 @@ import re
 EXTENSIONES_PROHIBIDAS = {'.exe', '.bat', '.sh', '.dll', '.so', '.cmd'}
 
 def validar_ruta_segura(ruta_base, ruta_archivo):
-    base_real = os.path.realpath(ruta_base)
-    archivo_real = os.path.realpath(os.path.join(base_real, ruta_archivo))
-    if not archivo_real.startswith(base_real):
+    if not ruta_base or not ruta_archivo:
+        return False, "La ruta base y la ruta del archivo son obligatorias."
+    base_real = os.path.normcase(os.path.realpath(os.path.abspath(ruta_base)))
+    if os.path.isabs(ruta_archivo):
+        return False, "Acceso denegado: Se requieren rutas relativas."
+    archivo_real = os.path.normcase(
+        os.path.realpath(os.path.abspath(os.path.join(base_real, ruta_archivo)))
+    )
+    try:
+        dentro = os.path.commonpath([base_real, archivo_real]) == base_real
+    except ValueError:
+        dentro = False
+    if not dentro:
         return False, "Acceso denegado: Ruta fuera del directorio permitido."
     return True, ""
 
