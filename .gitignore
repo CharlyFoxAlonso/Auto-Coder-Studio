@@ -9,3 +9,11 @@ chroma_db/
 Thumbs.db
 .autocoder/
 ~$*
+.venv/
+.pytest_cache/
+.agents/
+*.md
+*.docx
+*.exe
+*.bat
+auditoria-completa.md
