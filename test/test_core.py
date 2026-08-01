@@ -51,12 +51,14 @@ class CoreTests(unittest.TestCase):
                 self.assertTrue(validar_comando(argv)[0])
 
     def test_sessions_are_persisted_atomically(self):
-        import core.session_manager as sessions
+        from core import session_manager as sessions
+        from core import session_storage
 
         with tempfile.TemporaryDirectory() as root:
             data_dir = Path(root) / ".autocoder"
             sessions_dir = data_dir / "sessions"
-            with patch.object(sessions, "DATA_DIR", data_dir), patch.object(sessions, "SESSIONS_DIR", sessions_dir):
+            with patch.object(session_storage, "DATA_DIR", data_dir), \
+                 patch.object(session_storage, "SESSIONS_DIR", sessions_dir):
                 data = sessions.nueva_sesion(workspace=root, model="test-model")
                 sessions.agregar_mensaje(data, "user", "Crear una aplicación de prueba")
                 sessions.guardar_sesion(data)

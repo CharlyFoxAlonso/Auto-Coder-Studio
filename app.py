@@ -11,7 +11,14 @@ import requests
 import streamlit as st
 from dotenv import load_dotenv
 
-from core.coder_agent import forzar_json
+from core.parsers import forzar_json
+from core.command_parser import (
+    KnownCommand as _Known,
+    NotACommand as _NotA,
+    UnknownCommand as _Unknown,
+    generar_ayuda,
+    parse as parse_comando,
+)
 from core.command_runner import ejecutar_comando, validar_comando
 from core.cloud_processor import process_document_local
 from core.extensions_manager import (
@@ -626,21 +633,6 @@ def answer_once(data: dict, prompt: str) -> None:
     guardar_sesion(data)
 
 
-def command_help() -> str:
-    return """Comandos disponibles:
-
-- `/new` — nueva sesión
-- `/workspace RUTA` — seleccionar workspace
-- `/model PROVEEDOR:MODELO` — cambiar modelo
-- `/command NOMBRE :: PROMPT` — crear un comando reutilizable; usá `$ARGS`
-- `/skill NOMBRE :: DESCRIPCIÓN :: INSTRUCCIONES` — crear una skill
-- `/function NOMBRE :: DESCRIPCIÓN :: COMANDO` — crear una función fija aprobable
-- `/stop` — cancelar cualquier propuesta pendiente
-- `/clear` — limpiar mensajes de esta sesión
-- `/help` — mostrar esta ayuda
-"""
-
-
 def handle_command(data: dict, raw: str) -> tuple[bool, str | None]:
     if not raw.startswith("/"):
         return False, raw
@@ -649,49 +641,57 @@ def handle_command(data: dict, raw: str) -> tuple[bool, str | None]:
     custom = cargar_comandos()
     if command in custom:
         return False, custom[command].replace("$ARGS", rest.strip())
+    parsed = parse_comando(raw)
+    if isinstance(parsed, _NotA):
+        return False, raw
+    if isinstance(parsed, _Unknown):
+        return True, f"Comando desconocido: `/{parsed.name}`. Escribí `/help`."
+    cmd = parsed
     try:
-        if command in {"help", "commands"}:
-            return True, command_help()
-        if command == "new":
+        if cmd.kind == "redirect":
+            return True, "Usá los paneles de la izquierda para proveedores/modelos y sesiones."
+        if cmd.name == "help":
+            return True, generar_ayuda()
+        if cmd.name == "new":
             new = nueva_sesion(workspace=data.get("workspace", ""), provider_id=data.get("provider_id", "ollama"),
                                model=data.get("model", ""))
             switch_session(new["id"])
             st.session_state.notice = ("success", "Nueva sesión creada.")
             return True, None
-        if command == "stop":
+        if cmd.name == "stop":
             st.session_state.pending_action = None
             return True, "Acción cancelada."
-        if command == "clear":
+        if cmd.name == "clear":
             data["messages"] = []
             data["input_tokens"] = data["output_tokens"] = 0
             guardar_sesion(data)
             reset_runtime()
             return True, "Sesión limpiada."
-        if command == "workspace":
-            ok, message = set_workspace(data, rest.strip().strip('"'))
+        if cmd.name == "workspace":
+            ok, message = set_workspace(data, cmd.args.strip().strip('"'))
             return True, message
-        if command == "model":
-            provider_id, sep, model = rest.partition(":")
+        if cmd.name == "model":
+            provider_id, sep, model = cmd.args.partition(":")
             provider = obtener_proveedor(provider_id)
             if not sep or not provider or model not in provider.get("models", []):
                 return True, "Usá `/model proveedor:modelo` con un modelo configurado."
             data["provider_id"], data["model"] = provider_id, model
             guardar_sesion(data)
             return True, f"Modelo activo: {provider_id}/{model}"
-        if command == "command":
-            name, sep, prompt = rest.partition("::")
+        if cmd.name == "command":
+            name, sep, prompt = cmd.args.partition("::")
             if not sep:
                 raise ValueError("Formato: /command nombre :: prompt")
             saved = guardar_comando(name.strip(), prompt.strip())
             return True, f"Comando `/{saved}` creado."
-        if command == "skill":
-            parts = [part.strip() for part in rest.split("::", 2)]
+        if cmd.name == "skill":
+            parts = [part.strip() for part in cmd.args.split("::", 2)]
             if len(parts) != 3:
                 raise ValueError("Formato: /skill nombre :: descripción :: instrucciones")
             saved = guardar_skill(*parts)
             return True, f"Skill `{saved}` creada y activa para los próximos turnos."
-        if command == "function":
-            parts = [part.strip() for part in rest.split("::", 2)]
+        if cmd.name == "function":
+            parts = [part.strip() for part in cmd.args.split("::", 2)]
             if len(parts) != 3:
                 raise ValueError("Formato: /function nombre :: descripción :: comando")
             argv = shlex.split(parts[2], posix=os.name != "nt")
@@ -700,9 +700,7 @@ def handle_command(data: dict, raw: str) -> tuple[bool, str | None]:
                 raise ValueError(error)
             saved = guardar_funcion(parts[0], parts[1], argv)
             return True, f"Función `{saved}` creada. Su ejecución siempre pedirá aprobación."
-        if command in {"connect", "models", "sessions"}:
-            return True, "Usá los paneles de la izquierda para proveedores/modelos y sesiones."
-        return True, f"Comando desconocido: `/{command}`. Escribí `/help`."
+        return True, f"Comando desconocido: `/{cmd.name}`. Escribí `/help`."
     except ValueError as exc:
         return True, str(exc)
 

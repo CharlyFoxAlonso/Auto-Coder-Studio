@@ -1,28 +1,23 @@
-"""Persistencia local y atómica de sesiones de chat."""
+"""Persistencia local y atómica de sesiones de chat (delegada a core.session_storage)."""
 from __future__ import annotations
 
-import json
-import os
-import tempfile
 import uuid
 from datetime import datetime, timezone
-from pathlib import Path
 
-DATA_DIR = Path(".autocoder")
-SESSIONS_DIR = DATA_DIR / "sessions"
+# Importar la capa de almacenamiento de sesiones.
+from core.session_storage import (
+    _ensure,
+    _session_path,
+    save_session,
+    load_session,
+    list_sessions,
+    delete_session,
+)
 
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
-
-def _ensure() -> None:
-    SESSIONS_DIR.mkdir(parents=True, exist_ok=True)
-
-
-def _path(session_id: str) -> Path:
-    safe_id = "".join(c for c in session_id if c.isalnum() or c in "-_")
-    return SESSIONS_DIR / f"{safe_id}.json"
 
 
 def nueva_sesion(workspace: str = "", provider_id: str = "ollama", model: str = "") -> dict:
@@ -45,51 +40,21 @@ def nueva_sesion(workspace: str = "", provider_id: str = "ollama", model: str = 
 
 
 def guardar_sesion(data: dict) -> None:
-    _ensure()
+    # Delegamos la persistencia a core.session_storage
     data["updated_at"] = _now()
-    target = _path(data["id"])
-    fd, tmp_name = tempfile.mkstemp(prefix="session-", suffix=".json", dir=SESSIONS_DIR)
-    try:
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, ensure_ascii=False, indent=2)
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(tmp_name, target)
-    finally:
-        if os.path.exists(tmp_name):
-            os.remove(tmp_name)
+    save_session(data)
 
 
 def cargar_sesion(session_id: str) -> dict | None:
-    try:
-        with _path(session_id).open("r", encoding="utf-8") as handle:
-            return json.load(handle)
-    except (OSError, json.JSONDecodeError):
-        return None
+    return load_session(session_id)
 
 
 def listar_sesiones() -> list[dict]:
-    _ensure()
-    sessions = []
-    for path in SESSIONS_DIR.glob("*.json"):
-        try:
-            with path.open("r", encoding="utf-8") as handle:
-                data = json.load(handle)
-            sessions.append({k: data.get(k) for k in (
-                "id", "title", "workspace", "provider_id", "model",
-                "input_tokens", "output_tokens", "updated_at"
-            )})
-        except (OSError, json.JSONDecodeError):
-            continue
-    return sorted(sessions, key=lambda item: item.get("updated_at") or "", reverse=True)
+    return list_sessions()
 
 
 def borrar_sesion(session_id: str) -> bool:
-    try:
-        _path(session_id).unlink(missing_ok=True)
-        return True
-    except OSError:
-        return False
+    return delete_session(session_id)
 
 
 def agregar_mensaje(data: dict, role: str, content: str, **extra) -> None:
