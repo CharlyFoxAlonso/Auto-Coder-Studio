@@ -8,8 +8,8 @@ Use this playbook for tasks that modify code, create files, fix defects, refacto
 
 Before starting, read and apply:
 
-- `.agents/policies/git-safety.md`
-- `.agents/policies/testing.md`
+- `.agents/workflow-2/policies/git.md`
+- `.agents/workflow-2/policies/testing.md`
 
 When `codebase-memory-mcp` is available and useful, also apply:
 
@@ -185,7 +185,7 @@ If unavailable, continue with normal repository tools unless the task explicitly
 
 ## 12. Validate the implementation
 
-Apply `.agents/policies/testing.md`.
+Apply `.agents/workflow-2/policies/testing.md`.
 
 As applicable:
 

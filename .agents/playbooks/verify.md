@@ -8,8 +8,8 @@ Use this playbook to review, test, or validate an existing implementation withou
 
 Before starting, read and apply:
 
-- `.agents/policies/git-safety.md`
-- `.agents/policies/testing.md`
+- `.agents/workflow-2/policies/git.md`
+- `.agents/workflow-2/policies/testing.md`
 
 When `codebase-memory-mcp` is available and useful, also apply:
 
@@ -102,7 +102,7 @@ A scope violation is a verification failure even when tests pass.
 
 ## 7. Validate behavior
 
-Apply `.agents/policies/testing.md`.
+Apply `.agents/workflow-2/policies/testing.md`.
 
 When applicable, run:
 

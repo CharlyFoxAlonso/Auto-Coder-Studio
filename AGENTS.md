@@ -10,7 +10,7 @@ For every repository task, first read and apply:
 
 - `.agents/workflow-2/core.md`
 - `.agents/workflow-2/contracts/handoffs.md`
-- `.agents/policies/git-safety.md`
+- `.agents/workflow-2/policies/git.md`
 
 Select exactly one canonical role:
 
@@ -34,7 +34,7 @@ must not broaden its authority or replace its handoff/verdict.
 
 For tasks that execute or evaluate checks, also apply:
 
-- `.agents/policies/testing.md`
+- `.agents/workflow-2/policies/testing.md`
 
 Use the template for the active canonical role under
 `.agents/workflow-2/templates/`. Add repository-state fields from:
@@ -298,7 +298,7 @@ At minimum, when applicable:
 - perform syntax or import checks;
 - perform a smoke test when UI or startup behavior changes.
 
-Apply `.agents/policies/testing.md`.
+Apply `.agents/workflow-2/policies/testing.md`.
 
 Do not change the test framework or add testing dependencies without authorization.
 

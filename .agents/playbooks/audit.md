@@ -8,8 +8,8 @@ Use this playbook to perform an evidence-based audit of code, architecture, docu
 
 Before starting, read and apply:
 
-- `.agents/policies/git-safety.md`
-- `.agents/policies/testing.md`
+- `.agents/workflow-2/policies/git.md`
+- `.agents/workflow-2/policies/testing.md`
 
 When `codebase-memory-mcp` is available and useful, also apply:
 
@@ -158,7 +158,7 @@ Static inspection alone must not be reported as proof of runtime correctness.
 
 ## 9. Test review
 
-Apply `.agents/policies/testing.md` when validation is required.
+Apply `.agents/workflow-2/policies/testing.md` when validation is required.
 
 Evaluate whether tests:
 

@@ -20,6 +20,8 @@ single writer and independent audit.
 Do not combine roles in one pass. Planner, reviewer and Auditor remain
 read-only. Builder is the only writer.
 
+For role-boundary details, see `references/role-selection.md`.
+
 ## Load the canonical rules
 
 From this skill directory, read:

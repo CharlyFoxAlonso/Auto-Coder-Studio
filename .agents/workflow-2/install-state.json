@@ -1,6 +1,6 @@
 {
   "files": {
-    ".agents/skills/workflow-2/SKILL.md": "f6d676f4281d75d69af694c009d72204507b53e852ce1adb8d304a233bc179ad",
+    ".agents/skills/workflow-2/SKILL.md": "1f03717af52f8211d4be04298076e87a259603b88860fe5133a42dbc8baa4fa8",
     ".agents/skills/workflow-2/agents/openai.yaml": "ade0194489b08541f11ab4fd18994c7e6d1508d20776502d5accff776ff5a4f8",
     ".agents/skills/workflow-2/references/migration-rules.md": "696d40f06195d173b33594a776f005bb89f41c49d85f65c2043b289dd800cf3b",
     ".agents/skills/workflow-2/references/role-selection.md": "3a13eb4a39d4d3e471fd8ffbe831a4186bcccccb6df7f6ed18c45fc8f6f85e7e",
@@ -43,8 +43,8 @@
   },
   "name": "workflow-2",
   "routing_blocks": {
-    "AGENTS.md": "bbdc51aa76cd10019c23c40673b3a728d66f3ac5a7b8c436bf54e3e43e14679c",
-    "CLAUDE.md": "aa4ac9eb2bedf86711731ba4e54410aaec0d72ab8fab700fa08c842b59fb4e75"
+    "AGENTS.md": "d007a6ac320a7a5fd57012aef9ad85fbb2d250b619f59dae148ff9635f06d977",
+    "CLAUDE.md": "51742be2c57787f084fcd72b517c5b3502dbd29d184ec4b96b1b61dfde340f43"
   },
   "version": "2.0.0"
 }

@@ -8,7 +8,7 @@ Use this playbook when the task is to investigate, analyze, design, or produce a
 
 Before starting, read and apply:
 
-- `.agents/policies/git-safety.md`
+- `.agents/workflow-2/policies/git.md`
 
 When `codebase-memory-mcp` is available and useful, also apply:
 
