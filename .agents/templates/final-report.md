@@ -8,10 +8,14 @@ Omit sections that do not apply.
 
 ## Result
 
-**Mode:** planning | implementation | verification | audit  
-**Verdict:** `<verdict defined by the active playbook>`
+**Role:** Planner | Plan Reviewer | Builder | Auditor
+**Outcome:** `<canonical viability, plan gate, Builder handoff, or Auditor verdict>`
 
 One brief sentence describing the outcome.
+
+The canonical role template under `.agents/workflow-2/templates/` defines the
+required contract. This template adds project reporting fields and must not
+let Builder issue a technical verdict.
 
 ## Scope
 

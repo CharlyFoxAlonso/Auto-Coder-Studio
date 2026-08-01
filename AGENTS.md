@@ -6,22 +6,38 @@ Keep task prompts short. Load only the rules required by the current task.
 
 ## 1. Mandatory routing
 
-For any task that inspects or modifies repository files, apply:
+For every repository task, first read and apply:
 
+- `.agents/workflow-2/core.md`
+- `.agents/workflow-2/contracts/handoffs.md`
 - `.agents/policies/git-safety.md`
+
+Select exactly one canonical role:
+
+- planning or design → `.agents/workflow-2/roles/planner.md`
+- independent plan review → `.agents/workflow-2/roles/plan-reviewer.md`
+- implementation or bug fixing → `.agents/workflow-2/roles/builder.md`
+- verification, acceptance, architecture, quality, or security review →
+  `.agents/workflow-2/roles/auditor.md`
+
+Then load the matching Auto-Coder-Studio profile when applicable:
+
+- Planner → `.agents/playbooks/plan.md`
+- Builder → `.agents/playbooks/implement.md`
+- Auditor validating an implementation → `.agents/playbooks/verify.md`
+- Auditor reviewing architecture, quality, or security →
+  `.agents/playbooks/audit.md`
+
+The Plan Reviewer uses the canonical role and plan-review template; it must be
+independent from Planner. Project playbooks supplement the canonical role and
+must not broaden its authority or replace its handoff/verdict.
 
 For tasks that execute or evaluate checks, also apply:
 
 - `.agents/policies/testing.md`
 
-Select one primary playbook:
-
-- planning or design → `.agents/playbooks/plan.md`
-- implementation or bug fixing → `.agents/playbooks/implement.md`
-- verification or acceptance review → `.agents/playbooks/verify.md`
-- architecture, quality, or security audit → `.agents/playbooks/audit.md`
-
-Use the final response structure from:
+Use the template for the active canonical role under
+`.agents/workflow-2/templates/`. Add repository-state fields from:
 
 - `.agents/templates/final-report.md`
 
@@ -29,7 +45,7 @@ When `codebase-memory-mcp` is available and useful, apply:
 
 - `.agents/integrations/codebase-memory-mcp.md`
 
-Do not load unrelated playbooks or integrations.
+Do not load unrelated roles, playbooks, policies, or integrations.
 
 ## 2. Instruction priority
 
@@ -39,8 +55,9 @@ When instructions conflict, use this order:
 2. the approved plan or specification referenced by the task;
 3. accepted architectural decisions and governing project documentation;
 4. this `AGENTS.md`;
-5. policies, playbooks, integrations, and templates;
-6. existing implementation patterns.
+5. Workflow 2.0 contracts, roles, and policies;
+6. project policies, playbooks, integrations, and templates;
+7. existing implementation patterns.
 
 Report material conflicts instead of resolving them silently.
 
@@ -351,3 +368,21 @@ Do not repeat policies already routed through this file.
 Keep Auto-Coder-Studio local, controlled, testable, and safe.
 
 Treat model output as untrusted, preserve existing behavior, modify only the requested scope, and verify every implementation with real evidence.
+
+<!-- workflow-2:begin -->
+## Workflow 2.0 routing
+
+For every repository task, read `.agents/workflow-2/core.md` and
+`.agents/workflow-2/contracts/handoffs.md`.
+
+Select exactly one role file:
+
+- planning: `.agents/workflow-2/roles/planner.md`
+- plan review: `.agents/workflow-2/roles/plan-reviewer.md`
+- implementation: `.agents/workflow-2/roles/builder.md`
+- independent audit: `.agents/workflow-2/roles/auditor.md`
+
+Load only the risk policies required by the task. Project-specific rules in
+this file and more specific nested instruction files remain authoritative for
+their scope. Do not broaden scope or overwrite existing user work.
+<!-- workflow-2:end -->

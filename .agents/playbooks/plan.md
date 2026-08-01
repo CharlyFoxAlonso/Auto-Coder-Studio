@@ -1,5 +1,9 @@
 # Planning Playbook
 
+This is the Auto-Coder-Studio profile for the canonical Workflow 2.0 Planner.
+It supplements `.agents/workflow-2/roles/planner.md` and does not replace the
+independent Plan Reviewer gate.
+
 Use this playbook when the task is to investigate, analyze, design, or produce an implementation plan without modifying production code.
 
 Before starting, read and apply:

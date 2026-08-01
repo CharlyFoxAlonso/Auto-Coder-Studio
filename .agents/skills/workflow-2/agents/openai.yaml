@@ -1,0 +1,4 @@
+interface:
+  display_name: "Workflow 2.0"
+  short_description: "Plan, build, audit with evidence"
+  default_prompt: "Use $workflow-2 to prepare and execute a small, evidence-based development cut."

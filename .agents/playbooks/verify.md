@@ -1,5 +1,9 @@
 # Verification Playbook
 
+This is the Auto-Coder-Studio implementation-verification profile for the
+canonical Workflow 2.0 Auditor. It supplements
+`.agents/workflow-2/roles/auditor.md` and remains read-only.
+
 Use this playbook to review, test, or validate an existing implementation without modifying it.
 
 Before starting, read and apply:
@@ -226,17 +230,17 @@ Include:
 8. unverified areas;
 9. final verdict.
 
-Use one verdict:
+Use the canonical Auditor verdict:
 
-### APPROVED
+### PASS
 
 All required acceptance criteria pass, required checks succeed, and no blocking finding exists.
 
-### APPROVED WITH NOTES
+### PASS WITH OBSERVATIONS
 
 All required behavior passes, with only non-blocking findings or clearly limited observations.
 
-### REJECTED
+### FAIL
 
 At least one required criterion fails, a required check fails, scope was violated, or a blocking finding exists.
 

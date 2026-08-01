@@ -1,5 +1,9 @@
 # Audit Playbook
 
+This is the Auto-Coder-Studio architecture/quality/security profile for the
+canonical Workflow 2.0 Auditor. It supplements
+`.agents/workflow-2/roles/auditor.md` and remains read-only.
+
 Use this playbook to perform an evidence-based audit of code, architecture, documentation, security boundaries, or implementation quality.
 
 Before starting, read and apply:
@@ -281,25 +285,23 @@ Include:
 7. unverified risks;
 8. prioritized recommendations;
 9. limitations;
-10. audit verdict.
+10. optional health assessment and canonical audit verdict.
 
-Use one verdict:
+An audit may additionally describe overall health as `HEALTHY`,
+`HEALTHY WITH IMPROVEMENTS`, `NEEDS REMEDIATION`, or `CRITICAL`, but the gate
+for Workflow 2.0 must use one canonical verdict:
 
-### HEALTHY
+### PASS
 
 No material issue was found within the audited scope.
 
-### HEALTHY WITH IMPROVEMENTS
+### PASS WITH OBSERVATIONS
 
 No blocking issue exists, but meaningful improvements are recommended.
 
-### NEEDS REMEDIATION
+### FAIL
 
 One or more confirmed issues require correction before the audited component should be considered reliable.
-
-### CRITICAL
-
-Severe confirmed risk requires immediate attention.
 
 ### INCONCLUSIVE
 

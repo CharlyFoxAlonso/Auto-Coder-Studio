@@ -1,5 +1,9 @@
 # Implementation Playbook
 
+This is the Auto-Coder-Studio profile for the canonical Workflow 2.0 Builder.
+It supplements `.agents/workflow-2/roles/builder.md`; Builder remains the only
+writer and cannot approve its own work.
+
 Use this playbook for tasks that modify code, create files, fix defects, refactor behavior, or implement an approved plan.
 
 Before starting, read and apply:
@@ -231,7 +235,8 @@ Do not describe planned work as completed.
 
 ## 15. Final report
 
-Keep the report concise and evidence-based.
+Complete `.agents/workflow-2/templates/build-report.md` and add the applicable
+repository-state fields from `.agents/templates/final-report.md`.
 
 Include:
 
@@ -243,24 +248,13 @@ Include:
 6. limitations or failed checks;
 7. out-of-scope findings;
 8. final repository state;
-9. verdict.
+9. Auditor handoff.
 
-Use one verdict:
-
-### APPROVED
-
-The implementation satisfies the requested scope and all required checks pass.
-
-### APPROVED WITH NOTES
-
-The implementation satisfies the scope, with clearly documented non-blocking limitations.
-
-### REJECTED
-
-The implementation has a regression, scope violation, failed required check, or insufficient evidence.
+Builder reports facts, deviations, evidence, limitations, and final Git state.
+Builder does not issue `APPROVED`, `PASS`, or any other technical verdict.
 
 ## Final rule
 
-Implement only what was requested.
+Implement only the independently approved contract.
 
 Preserve user work, avoid speculative redesign, verify with real evidence, and report limitations honestly.
